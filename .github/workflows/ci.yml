@@ -44,6 +44,13 @@ jobs:
         command: fmt
         args: --all -- --check
 
+    - name: Check
+      env:
+        CARGO_INCREMENTAL: 0
+      uses: actions-rs/cargo@v1
+      with:
+        command: check
+
     - name: Clippy
       uses: actions-rs/cargo@v1
       env:
@@ -52,43 +59,16 @@ jobs:
         command: clippy
         args: -- -D warnings
 
-    - name: Check
-      env:
-        CARGO_INCREMENTAL: 0
-      uses: actions-rs/cargo@v1
-      with:
-        command: check
-
     - name: Build
       env:
         CARGO_INCREMENTAL: 0
-      if: matrix.os != 'windows-latest'
       uses: actions-rs/cargo@v1
       with:
         command: build
-
-    - name: Build
-      env:
-        CARGO_INCREMENTAL: 0
-      if: matrix.os == 'windows-latest'
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --features bundled-sqlite
 
     - name: Test
       uses: actions-rs/cargo@v1
       env:
         CARGO_INCREMENTAL: 0
-      if: matrix.os != 'windows-latest'
       with:
         command: test
-
-    - name: Test
-      uses: actions-rs/cargo@v1
-      env:
-        CARGO_INCREMENTAL: 0
-      if: matrix.os == 'windows-latest'
-      with:
-        command: test
-        args: --features bundled-sqlite
