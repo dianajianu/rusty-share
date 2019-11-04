@@ -229,6 +229,28 @@ impl RustyShare {
         .map(|r| r.into_inner())
     }
 
+    fn register(&self, parts: Parts, body: Body) -> impl Future<Item = Response, Error = Error> {
+        if parts.method == Method::GET {
+            Either2::A(self.register_page())
+        } else {
+            let fut = self.get_db().and_then(move |store| {
+                let redirect = form_urlencoded::parse(parts.uri.query().unwrap_or("").as_bytes())
+                    .filter_map(|p| {
+                        if p.0 == "redirect" {
+                            Some(p.1.into_owned())
+                        } else {
+                            None
+                        }
+                    })
+                    .next();
+                LoginForm::from_body(body)
+                    .map(|form| Self::register_action(store, redirect, &form.user, &form.pass))
+            });
+            Either2::B(fut)
+        }
+        .map(|r| r.into_inner())
+    }
+
     fn browse_or_archive(
         &self,
         parts: Parts,
@@ -326,6 +348,14 @@ impl RustyShare {
         }
     }
 
+    fn register_page(&self) -> impl Future<Item = Response, Error = Error> {
+        if self.pool.is_some() {
+            future::ok(page::register(None))
+        } else {
+            future::ok(response::not_found())
+        }
+    }
+
     fn login_action(store: DbStore, redirect: Option<String>, user: &str, pass: &str) -> Response {
         if let Some(ref store) = store.0 {
             let redirect = redirect.unwrap_or_else(|| String::from("/browse/"));
@@ -338,6 +368,23 @@ impl RustyShare {
                 info!("Authenticating {}: failed", user);
                 page::login(Some(
                     "Login failed. Please contact the site owner to reset your password.",
+                ))
+            }
+        } else {
+            response::not_found()
+        }
+    }
+
+    fn register_action(store: DbStore, redirect: Option<String>, user: &str, pass: &str) -> Response {
+        if let Some(ref store) = store.0 {
+            let redirect = redirect.unwrap_or_else(|| String::from("/login"));
+
+            let user_id = register_user(&store, user, pass).unwrap();
+            if user_id > 0 {
+                response::register_ok(&redirect)
+            } else {
+                page::login(Some(
+                    "Registering failed. Please contact the site owner to reset your password.",
                 ))
             }
         } else {
@@ -483,6 +530,10 @@ impl RustyShare {
             (&Method::GET, "/login") | (&Method::POST, "/login") => {
                 let res = self.login(parts, body);
                 Either6::E(res)
+            }
+            (&Method::GET, "/register") | (&Method::POST, "/register") => {
+                let res = self.register(parts, body);
+                Either6::G(res)
             }
             (&Method::GET, "/favicon.ico") => {
                 let res = self.favicon();

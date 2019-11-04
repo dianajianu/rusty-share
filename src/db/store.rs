@@ -32,6 +32,14 @@ impl Store {
         super::last_inserted_row_id(self.connection())
     }
 
+    pub fn load_users(&self) -> QueryResult<Option<usize>> {
+        let users = users::table.count().execute(self.connection())
+        .optional()
+        .expect("There is no user registered");
+
+        Ok(users)
+    }
+
     pub fn update_password_by_id(&self, user_id: i32, password: &str) -> QueryResult<usize> {
         diesel::update(users::table.find(user_id))
             .set(users::password.eq(password))
@@ -137,6 +145,16 @@ impl Store {
         super::last_inserted_row_id(self.connection())
     }
 
+    pub fn create_user(&self, name: &str, password: &str) -> QueryResult<i32> {
+        diesel::insert_into(users::table)
+            .values((
+                users::name.eq(name),
+                users::password.eq(password),
+            ))
+            .execute(self.connection())?;
+        super::last_inserted_row_id(self.connection())
+    }
+    
     pub fn transaction<T, E, F>(&self, f: F) -> Result<T, E>
     where
         F: FnOnce() -> Result<T, E>,
