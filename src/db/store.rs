@@ -44,6 +44,12 @@ impl SqliteStore {
         self::last_inserted_row_id(&conn)
     }
 
+    pub fn load_users(&self) -> DbResult<Vec<User>> {
+        let conn = self.0.get()?;
+        let users = users::table.load(&conn)?;
+        Ok(users)
+    }
+
     pub fn update_password_by_id(&self, user_id: i32, password: &str) -> DbResult<usize> {
         let conn = self.0.get()?;
         let count = diesel::update(users::table.find(user_id))
@@ -159,6 +165,6 @@ impl SqliteStore {
                 shares::access_level.eq(AccessLevel::Authenticated as i32),
             ))
             .execute(&conn)?;
-        self::last_inserted_row_id(&conn)
+         self::last_inserted_row_id(&conn)
     }
 }
