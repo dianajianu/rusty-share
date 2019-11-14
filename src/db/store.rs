@@ -166,6 +166,5 @@ impl SqliteStore {
             ))
             .execute(&conn)?;
          self::last_inserted_row_id(&conn)
-
     }
 }
