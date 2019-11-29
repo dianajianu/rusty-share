@@ -357,7 +357,12 @@ impl RustyShare {
         })
     }
 
-    fn login_action(store: Option<SqliteStore>, redirect: Option<String>, user: &str, pass: &str,) -> BoxedFuture<Response, Error> {
+    fn login_action(
+        store: Option<SqliteStore>,
+        redirect: Option<String>,
+        user: &str,
+        pass: &str,
+    ) -> BoxedFuture<Response, Error> {
         if let Some(store) = store {
             let user = user.to_string();
             let pass = pass.to_string();
@@ -513,7 +518,9 @@ impl RustyShare {
         let (parts, body) = req.into_parts();
         match (&parts.method, parts.uri.path()) {
             (&Method::GET, "/") => self.index(),
-            (&Method::GET, "/register") | (&Method::POST, "/register") => self.register_or_login(parts, body),
+            (&Method::GET, "/register") | (&Method::POST, "/register") => {
+                self.register_or_login(parts, body)
+            }
             (&Method::GET, "/login") | (&Method::POST, "/login") => self.login(parts, body),
             (&Method::GET, "/favicon.ico") => self.favicon(),
             (&Method::GET, "/browse/") => self.browse_shares(parts),

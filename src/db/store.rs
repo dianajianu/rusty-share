@@ -165,7 +165,6 @@ impl SqliteStore {
                 shares::access_level.eq(AccessLevel::Authenticated as i32),
             ))
             .execute(&conn)?;
-         self::last_inserted_row_id(&conn)
-
+        self::last_inserted_row_id(&conn)
     }
 }
