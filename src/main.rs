@@ -396,7 +396,7 @@ impl RustyShare {
                 response::register_ok("/login")
             } else {
                 page::register(Some(
-                    "Registering failed.",
+                    "Registration failed.",
                 ))
             }
         } else {
