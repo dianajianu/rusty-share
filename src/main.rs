@@ -395,9 +395,7 @@ impl RustyShare {
             if user_id > 0 {
                 response::register_ok("/login")
             } else {
-                page::register(Some(
-                    "Registration failed.",
-                ))
+                page::register(Some("Registration failed."))
             }
         } else {
             response::not_found()
@@ -522,7 +520,9 @@ impl RustyShare {
         let (parts, body) = req.into_parts();
         match (&parts.method, parts.uri.path()) {
             (&Method::GET, "/") => self.index(),
-            (&Method::GET, "/register") | (&Method::POST, "/register") => self.register(parts, body),
+            (&Method::GET, "/register") | (&Method::POST, "/register") => {
+                self.register(parts, body)
+            }
             (&Method::GET, "/login") | (&Method::POST, "/login") => self.login(parts, body),
             (&Method::GET, "/favicon.ico") => self.favicon(),
             (&Method::GET, "/browse/") => self.browse_shares(parts),
