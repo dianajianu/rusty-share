@@ -391,7 +391,7 @@ impl RustyShare {
             if user_id > 0 {
                 response::register_ok("/login")
             } else {
-                page::login(Some(
+                page::register(Some(
                     "Registration failed.",
                 ))
             }
