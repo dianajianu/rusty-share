@@ -225,23 +225,27 @@ impl RustyShare {
         }
     }
 
-    fn register_or_login(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
+    fn register(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
         let store = self.store.clone();
-        let fut: BoxedFuture<Response, Error>;
+
         if let Some(store) = store {
-            let users = store.load_users().unwrap();
-            if users.len() > 0 {
-                fut = self.login(parts, body);
-            } else {
-                fut = self.register(parts, body);
+            let exists = store.users_exist();
+            match exists {
+                Ok(exists) => {
+                    if exists {
+                        Box::new(future::ok(response::bad_request()))
+                    } else {
+                        Box::new(self.register_user(parts, body))
+                    }
+                }
+                Err(_) => Box::new(future::ok(response::internal_server_error())),
             }
-            Box::new(fut)
         } else {
-            Box::new(self.register(parts, body))
+            Box::new(future::ok(response::internal_server_error()))
         }
     }
 
-    fn register(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
+    fn register_user(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
         if parts.method == Method::GET {
             self.register_page()
         } else {
@@ -391,8 +395,8 @@ impl RustyShare {
             if user_id > 0 {
                 response::register_ok("/login")
             } else {
-                page::login(Some(
-                    "Registering failed. Please contact the site owner to reset your password.",
+                page::register(Some(
+                    "Registering failed.",
                 ))
             }
         } else {
@@ -518,9 +522,7 @@ impl RustyShare {
         let (parts, body) = req.into_parts();
         match (&parts.method, parts.uri.path()) {
             (&Method::GET, "/") => self.index(),
-            (&Method::GET, "/register") | (&Method::POST, "/register") => {
-                self.register_or_login(parts, body)
-            }
+            (&Method::GET, "/register") | (&Method::POST, "/register") => self.register(parts, body),
             (&Method::GET, "/login") | (&Method::POST, "/login") => self.login(parts, body),
             (&Method::GET, "/favicon.ico") => self.favicon(),
             (&Method::GET, "/browse/") => self.browse_shares(parts),
