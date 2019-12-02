@@ -392,7 +392,7 @@ impl RustyShare {
                 response::register_ok("/login")
             } else {
                 page::login(Some(
-                    "Registering failed. Please contact the site owner to reset your password.",
+                    "Registration failed.",
                 ))
             }
         } else {
