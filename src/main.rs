@@ -238,7 +238,7 @@ impl RustyShare {
                         Box::new(self.register_user(parts, body))
                     }
                 }
-                Err(_) => Box::new(future::ok(response::internal_server_error())),
+                Err(_) => Box::new(future::ok(response::not_found())),
             }
         } else {
             Box::new(future::ok(response::not_found()))
