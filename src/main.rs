@@ -241,7 +241,7 @@ impl RustyShare {
                 Err(_) => Box::new(future::ok(response::internal_server_error())),
             }
         } else {
-            Box::new(future::ok(response::internal_server_error()))
+            Box::new(future::ok(response::not_found()))
         }
     }
 
