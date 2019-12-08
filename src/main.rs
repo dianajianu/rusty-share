@@ -105,7 +105,7 @@ fn get_archive_name(path_: &Path, files: &[PathBuf], single_dir: bool) -> String
 struct LoginForm {
     user: String,
     pass: String,
-    confirm_pass: String
+    confirm_pass: String,
 }
 
 impl LoginForm {
@@ -123,7 +123,11 @@ impl LoginForm {
                 confirm_pass = p.1.into_owned();
             }
         }
-        Self { user, pass, confirm_pass }
+        Self {
+            user,
+            pass,
+            confirm_pass,
+        }
     }
 
     fn from_body(body: Body) -> impl Future<Item = Self, Error = Error> {
@@ -233,31 +237,30 @@ impl RustyShare {
     fn register(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
         let store = self.store.clone();
 
-        let fut = LoginForm::from_body(body)
-                .map(|form| { 
-                    if &form.pass != &form.confirm_pass {
-                        response::bad_request()
-                    } else {
-                    if let Some(store) = store {
+        let fut = LoginForm::from_body(body).map(|form| {
+            if &form.pass != &form.confirm_pass {
+                response::bad_request()
+            } else {
+                if let Some(store) = store {
                     let exists = store.users_exist();
-                    match exists 
-                    {
+                    match exists {
                         Ok(exists) => {
                             if exists {
                                 response::bad_request()
                             } else {
-                            self.register_user(parts, &form.user, &form.pass)
+                                self.register_user(parts, &form.user, &form.pass)
                             }
                         }
                         Err(_) => response::internal_server_error(),
                     }
-                    } else {
+                } else {
                     response::internal_server_error()
-                }}});
-                Box::new(fut)
+                }
+            }
+        });
+        Box::new(fut)
     }
-    
-    
+
     fn register_user(&self, parts: Parts, user: &str, pass: &str) -> Response {
         if parts.method == Method::GET {
             self.register_page()
