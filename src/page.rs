@@ -197,7 +197,7 @@ pub fn register(message: Option<&str>) -> Response<Body> {
                     form(method="POST", class="form") {
                         input(type="text", name="user", placeholder="username", autofocus);
                         input(type="password", name="pass", placeholder="password");
-                        input(type="password", name="conf_pass", placeholder="confirm password");
+                        input(type="password", name="confirm_pass", placeholder="confirm password");
                         button { : Raw("Register") }
                         @ if let Some(message) = message {
                             p(class="message") { : message }

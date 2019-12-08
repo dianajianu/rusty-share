@@ -105,20 +105,25 @@ fn get_archive_name(path_: &Path, files: &[PathBuf], single_dir: bool) -> String
 struct LoginForm {
     user: String,
     pass: String,
+    confirm_pass: String
 }
 
 impl LoginForm {
     pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Self {
         let mut user = String::new();
         let mut pass = String::new();
+        let mut confirm_pass = String::new();
+
         for p in form_urlencoded::parse(input.as_ref()) {
             if p.0 == "user" {
                 user = p.1.into_owned();
             } else if p.0 == "pass" {
                 pass = p.1.into_owned();
+            } else if p.0 == "confirm_pass" {
+                confirm_pass = p.1.into_owned();
             }
         }
-        Self { user, pass }
+        Self { user, pass, confirm_pass }
     }
 
     fn from_body(body: Body) -> impl Future<Item = Self, Error = Error> {
@@ -228,33 +233,37 @@ impl RustyShare {
     fn register(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
         let store = self.store.clone();
 
-        if let Some(store) = store {
-            let exists = store.users_exist();
-            match exists {
-                Ok(exists) => {
-                    if exists {
-                        Box::new(future::ok(response::bad_request()))
+        let fut = LoginForm::from_body(body)
+                .map(|form| { 
+                    if &form.pass != &form.confirm_pass {
+                        response::bad_request()
                     } else {
-                        Box::new(self.register_user(parts, body))
+                    if let Some(store) = store {
+                    let exists = store.users_exist();
+                    match exists 
+                    {
+                        Ok(exists) => {
+                            if exists {
+                                response::bad_request()
+                            } else {
+                            self.register_user(parts, &form.user, &form.pass)
+                            }
+                        }
+                        Err(_) => response::internal_server_error(),
                     }
-                }
-                Err(_) => Box::new(future::ok(response::internal_server_error())),
-            }
-        } else {
-            Box::new(future::ok(response::internal_server_error()))
-        }
+                    } else {
+                    response::internal_server_error()
+                }}});
+                Box::new(fut)
     }
-
-    fn register_user(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
+    
+    
+    fn register_user(&self, parts: Parts, user: &str, pass: &str) -> Response {
         if parts.method == Method::GET {
             self.register_page()
         } else {
             let store = self.store.clone();
-            let fut = {
-                LoginForm::from_body(body)
-                    .map(|form| Self::register_action(store, &form.user, &form.pass))
-            };
-            Box::new(fut)
+            Self::register_action(store, user, pass)
         }
     }
 
@@ -353,12 +362,12 @@ impl RustyShare {
         })
     }
 
-    fn register_page(&self) -> BoxedFuture<Response, Error> {
-        Box::new(if self.store.is_some() {
-            future::ok(page::register(None))
+    fn register_page(&self) -> Response {
+        if self.store.is_some() {
+            page::register(None)
         } else {
-            future::ok(response::not_found())
-        })
+            response::not_found()
+        }
     }
 
     fn login_action(
@@ -391,11 +400,10 @@ impl RustyShare {
 
     fn register_action(store: Option<SqliteStore>, user: &str, pass: &str) -> Response {
         if let Some(ref store) = store {
-            let user_id = register_user(&store, user, pass).unwrap();
-            if user_id > 0 {
-                response::register_ok("/login")
-            } else {
-                page::register(Some("Registration failed."))
+            let user_id = register_user(&store, user, pass);
+            match user_id {
+                Ok(_) => response::register_ok("/login"),
+                Err(_) => page::register(Some("Registration failed.")),
             }
         } else {
             response::not_found()
