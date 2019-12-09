@@ -236,37 +236,29 @@ impl RustyShare {
 
     fn register(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
         let store = self.store.clone();
-
-        let fut = LoginForm::from_body(body).map(|form| {
-            if &form.pass != &form.confirm_pass {
-                response::bad_request()
-            } else {
-                if let Some(store) = store {
+        if let Some(store) = store {
+            let fut = LoginForm::from_body(body).map(move |form| {
+                if &form.pass != &form.confirm_pass {
+                    response::bad_request()
+                } else {
                     let exists = store.users_exist();
                     match exists {
                         Ok(exists) => {
                             if exists {
-                                response::bad_request()
+                                response::not_found()
+                            } else if parts.method == Method::GET {
+                                page::register(None)
                             } else {
-                                self.register_user(parts, &form.user, &form.pass)
+                                Self::register_action(store, &form.user, &form.pass)
                             }
                         }
                         Err(_) => response::internal_server_error(),
                     }
-                } else {
-                    response::internal_server_error()
                 }
-            }
-        });
-        Box::new(fut)
-    }
-
-    fn register_user(&self, parts: Parts, user: &str, pass: &str) -> Response {
-        if parts.method == Method::GET {
-            self.register_page()
+            });
+            Box::new(fut)
         } else {
-            let store = self.store.clone();
-            Self::register_action(store, user, pass)
+            Box::new(future::ok(response::not_found()))
         }
     }
 
@@ -365,14 +357,6 @@ impl RustyShare {
         })
     }
 
-    fn register_page(&self) -> Response {
-        if self.store.is_some() {
-            page::register(None)
-        } else {
-            response::not_found()
-        }
-    }
-
     fn login_action(
         store: Option<SqliteStore>,
         redirect: Option<String>,
@@ -401,15 +385,11 @@ impl RustyShare {
         }
     }
 
-    fn register_action(store: Option<SqliteStore>, user: &str, pass: &str) -> Response {
-        if let Some(ref store) = store {
-            let user_id = register_user(&store, user, pass);
-            match user_id {
-                Ok(_) => response::register_ok("/login"),
-                Err(_) => page::register(Some("Registration failed.")),
-            }
-        } else {
-            response::not_found()
+    fn register_action(store: SqliteStore, user: &str, pass: &str) -> Response {
+        let user_id = register_user(&store, user, pass);
+        match user_id {
+            Ok(_) => response::register_ok("/login"),
+            Err(_) => page::register(Some("Registration failed.")),
         }
     }
 
