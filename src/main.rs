@@ -105,10 +105,35 @@ fn get_archive_name(path_: &Path, files: &[PathBuf], single_dir: bool) -> String
 struct LoginForm {
     user: String,
     pass: String,
-    confirm_pass: String,
 }
 
 impl LoginForm {
+    pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Self {
+        let mut user = String::new();
+        let mut pass = String::new();
+
+        for p in form_urlencoded::parse(input.as_ref()) {
+            if p.0 == "user" {
+                user = p.1.into_owned();
+            } else if p.0 == "pass" {
+                pass = p.1.into_owned();
+            }
+        }
+        Self { user, pass }
+    }
+
+    fn from_body(body: Body) -> impl Future<Item = Self, Error = Error> {
+        vec_from_body(body).map(Self::from_bytes)
+    }
+}
+
+struct RegisterForm {
+    user: String,
+    pass: String,
+    confirm_pass: String,
+}
+
+impl RegisterForm {
     pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Self {
         let mut user = String::new();
         let mut pass = String::new();
@@ -242,9 +267,11 @@ impl RustyShare {
     fn register(&self, parts: Parts, body: Body) -> BoxedFuture<Response, Error> {
         let store = self.store.clone();
         if let Some(store) = store {
-            let fut = LoginForm::from_body(body).map(move |form| {
+            let fut = RegisterForm::from_body(body).map(move |form| {
                 if &form.pass != &form.confirm_pass {
-                    response::bad_request()
+                    page::login(Some("Registering failed. Passwords doesn't match."))
+                } else if &form.pass == "" || &form.confirm_pass == "" {
+                    page::login(Some("Registering failed. Username or password is empty."))
                 } else {
                     let exists = store.users_exist();
                     match exists {
