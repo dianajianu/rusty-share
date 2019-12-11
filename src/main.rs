@@ -269,9 +269,7 @@ impl RustyShare {
         if let Some(store) = store {
             let fut = RegisterForm::from_body(body).map(move |form| {
                 if &form.pass != &form.confirm_pass {
-                    page::login(Some("Registering failed. Passwords doesn't match."))
-                } else if &form.pass == "" || &form.confirm_pass == "" {
-                    page::login(Some("Registering failed. Username or password is empty."))
+                    page::register(Some("Registering failed. Passwords doesn't match."))
                 } else {
                     let exists = store.users_exist();
                     match exists {
